@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 
-export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload }) {
+export default function ChatInterface({ onGenerate, onBoundaryUpload, loading }) {
     const [messages, setMessages] = useState([
-        { role: 'assistant', content: "Welcome! I'll help you design your floor plan. What's the total area of your plot (in sq ft)?" }
+        { role: 'assistant', content: "Hi! I'm ready to help you design a floor plan. Describe what you need -- for example:\n\n\"I want a 1500 sq ft 2BHK with a living room, kitchen, dining, master bedroom with attached bath, one guest bedroom, and a balcony.\"" }
     ])
     const [input, setInput] = useState('')
     const [isTyping, setIsTyping] = useState(false)
@@ -11,12 +11,18 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
     const [extractedData, setExtractedData] = useState({ rooms: [], total_area: null })
     const messagesEndRef = useRef(null)
     const fileInputRef = useRef(null)
+    const extractedRef = useRef({ rooms: [], total_area: null })
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages, isTyping])
 
-    // WebSocket connection - only connect when user switches to chat tab
+    // Keep extractedRef in sync
+    useEffect(() => {
+        extractedRef.current = extractedData
+    }, [extractedData])
+
+    // WebSocket connection
     useEffect(() => {
         let socket = null
         let reconnectTimeout = null
@@ -49,8 +55,11 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
                         })
                     }
 
-                    if (data.should_generate && extractedData.total_area) {
-                        onGenerate(extractedData.rooms, extractedData.total_area)
+                    if (data.should_generate) {
+                        const current = extractedRef.current
+                        if (current.total_area && current.rooms?.length > 0) {
+                            onGenerate(current.rooms, current.total_area)
+                        }
                     }
                 }
 
@@ -61,7 +70,6 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
                 socket.onclose = () => {
                     setWs(null)
                     setWsReady(false)
-                    // Retry after 5 seconds
                     reconnectTimeout = setTimeout(connect, 5000)
                 }
             } catch {
@@ -78,29 +86,26 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
     }, [])
 
     const sendMessage = useCallback(() => {
-        if (!input.trim()) return
+        if (!input.trim() || loading) return
 
         const userMsg = { role: 'user', content: input.trim() }
         setMessages(prev => [...prev, userMsg])
         setIsTyping(true)
 
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                message: input.trim(),
-                project_id: projectId,
-            }))
+            ws.send(JSON.stringify({ message: input.trim() }))
         } else {
             setTimeout(() => {
                 setIsTyping(false)
                 setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: "I'm not connected right now. Please use the Form tab to configure your floor plan.",
+                    content: "I'm not connected right now. Please use the Form tab instead -- it works offline and lets you configure rooms step by step.",
                 }])
             }, 1000)
         }
 
         setInput('')
-    }, [input, ws, projectId])
+    }, [input, ws, loading])
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -124,7 +129,12 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
         if (result) {
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: `I've extracted the boundary from your upload. It has ${result.num_vertices} vertices and an area of ${result.area.toFixed(0)} sq units. Now, tell me what rooms you'd like!`,
+                content: `Boundary extracted successfully! It has ${result.num_vertices || 'several'} vertices and an area of ${result.area ? result.area.toFixed(0) : 'calculated'} sq units. Now describe what rooms you would like inside this boundary.`,
+            }])
+        } else {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: 'Sorry, I could not extract a boundary from that file. Please try a clearer image or a DXF file.',
             }])
         }
     }
@@ -140,14 +150,22 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
                     fontSize: '0.78rem',
                     color: '#92400e',
                     marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                 }}>
-                    Chat is connecting... You can use the Form tab in the meantime.
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    Chat connecting... Use the Form tab in the meantime.
                 </div>
             )}
-            <div className="chat-messages" style={{ flex: 1 }}>
+            <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '1rem 0' }}>
                 {messages.map((msg, i) => (
                     <div key={i} className={`chat-bubble ${msg.role}`}>
-                        {msg.content}
+                        {msg.content.split('\n').map((line, j) => (
+                            <span key={j}>{line}{j < msg.content.split('\n').length - 1 && <br />}</span>
+                        ))}
                     </div>
                 ))}
                 {isTyping && (
@@ -155,6 +173,24 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
                         <div className="typing-dot" />
                         <div className="typing-dot" />
                         <div className="typing-dot" />
+                    </div>
+                )}
+                {loading && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.75rem 1rem',
+                        background: 'var(--accent-light)',
+                        border: '1px solid var(--accent-soft)',
+                        borderRadius: 'var(--radius-md)',
+                        alignSelf: 'flex-start',
+                        maxWidth: '88%',
+                    }}>
+                        <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2, marginBottom: 0 }}></div>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--accent)', fontWeight: 600 }}>
+                            Generating your floor plan...
+                        </span>
                     </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -171,7 +207,8 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
                 <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => fileInputRef.current?.click()}
-                    title="Upload boundary"
+                    title="Upload boundary image"
+                    disabled={loading}
                 >
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -182,10 +219,18 @@ export default function ChatInterface({ projectId, onGenerate, onBoundaryUpload 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Describe your dream home..."
+                    placeholder={loading ? 'Generating plan...' : 'Describe your dream home...'}
+                    disabled={loading}
                 />
-                <button className="btn btn-primary btn-sm" onClick={sendMessage}>
-                    Send
+                <button
+                    className="btn btn-primary btn-sm"
+                    onClick={sendMessage}
+                    disabled={loading || !input.trim()}
+                    style={{ opacity: (loading || !input.trim()) ? 0.5 : 1 }}
+                >
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
                 </button>
             </div>
         </div>

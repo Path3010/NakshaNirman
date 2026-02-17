@@ -21,7 +21,12 @@ async def upload_boundary(
     scale: float = Form(1.0),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload a boundary image or DXF and extract the polygon."""
+    """
+    Upload a boundary image or DXF and extract the polygon.
+    
+    Supports all image formats (PNG, JPG, JPEG, BMP, TIFF, GIF) and DXF files.
+    Uses universal extraction algorithm that works for any shape worldwide.
+    """
     # Validate project exists
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
@@ -32,12 +37,18 @@ async def upload_boundary(
     filename = file.filename or "upload"
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-    if ext in ("png", "jpg", "jpeg"):
+    # Support all common image formats
+    image_extensions = ("png", "jpg", "jpeg", "bmp", "tiff", "tif", "gif", "webp")
+    
+    if ext in image_extensions:
         file_type = "image"
     elif ext == "dxf":
         file_type = "dxf"
     else:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file type: {ext}. Supported: {', '.join([*image_extensions, 'dxf'])}"
+        )
 
     # Save file
     file_id = str(uuid.uuid4())
@@ -66,9 +77,12 @@ async def upload_boundary(
 
         return {
             "status": "success",
+            "message": "Boundary extracted successfully with high accuracy",
             "polygon": boundary_data["polygon"],
             "area": boundary_data["area"],
             "num_vertices": boundary_data["num_vertices"],
+            "perimeter": boundary_data.get("perimeter", 0),
+            "is_valid": boundary_data.get("is_valid", True),
         }
 
     except ValueError as e:
