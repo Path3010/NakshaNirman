@@ -85,68 +85,27 @@ export default function ChatInterface({ onGenerate, onBoundaryUpload, loading })
         }
     }, [])
 
-    const sendMessage = useCallback(async () => {
+    const sendMessage = useCallback(() => {
         if (!input.trim() || loading) return
 
         const userMsg = { role: 'user', content: input.trim() }
         setMessages(prev => [...prev, userMsg])
         setIsTyping(true)
 
-        try {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                // Use WebSocket if available
-                ws.send(JSON.stringify({ message: input.trim() }))
-            } else {
-                // Fallback to HTTP POST
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: input.trim(),
-                        project_id: null,
-                        history: messages.map(m => ({
-                            role: m.role,
-                            content: m.content
-                        }))
-                    })
-                })
-
-                if (!response.ok) {
-                    throw new Error('Chat service unavailable')
-                }
-
-                const data = await response.json()
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ message: input.trim() }))
+        } else {
+            setTimeout(() => {
                 setIsTyping(false)
-                setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
-
-                if (data.extracted_data) {
-                    setExtractedData(prev => {
-                        const updated = { ...prev }
-                        if (data.extracted_data.total_area) updated.total_area = data.extracted_data.total_area
-                        if (data.extracted_data.rooms) {
-                            updated.rooms = [...(updated.rooms || []), ...data.extracted_data.rooms]
-                        }
-                        return updated
-                    })
-                }
-
-                if (data.should_generate) {
-                    const current = extractedRef.current
-                    if (current.total_area && current.rooms?.length > 0) {
-                        onGenerate(current.rooms, current.total_area)
-                    }
-                }
-            }
-        } catch (err) {
-            setIsTyping(false)
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: "I encountered a connection issue. Please try again or use the Form tab which works offline.",
-            }])
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: "I'm not connected right now. Please use the Form tab instead -- it works offline and lets you configure rooms step by step.",
+                }])
+            }, 1000)
         }
 
         setInput('')
-    }, [input, ws, loading, messages, onGenerate])
+    }, [input, ws, loading])
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
