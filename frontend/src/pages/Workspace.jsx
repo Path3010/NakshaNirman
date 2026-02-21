@@ -19,6 +19,7 @@ export default function Workspace() {
     const [loadingMessage, setLoadingMessage] = useState('')
     const [projectId, setProjectId] = useState(null)
     const [boundary, setBoundary] = useState(null)
+    const [boundaryData, setBoundaryData] = useState(null)  // full Phase 1 data
     const [sessionId] = useState(() => generateSessionId())
     const [error, setError] = useState(null)
 
@@ -26,6 +27,7 @@ export default function Workspace() {
         setPlan(null)
         setProjectId(null)
         setBoundary(null)
+        setBoundaryData(null)
         setPreviewMode('2d')
         setLoading(false)
         setError(null)
@@ -146,9 +148,7 @@ export default function Workspace() {
 
             const footprintData = await footprintRes.json()
 
-            setBoundary(footprintData.usable_polygon)
-            setLoading(false)
-            return {
+            const resultData = {
                 boundary: extractData.boundary_polygon,
                 usable_polygon: footprintData.usable_polygon,
                 area: footprintData.boundary_area,
@@ -157,7 +157,13 @@ export default function Workspace() {
                 coverage_ratio: footprintData.coverage_ratio,
                 preview_url: footprintData.preview_url,
                 num_vertices: extractData.num_vertices,
+                file_id: fileId,
             }
+
+            setBoundary(footprintData.usable_polygon)
+            setBoundaryData(resultData)
+            setLoading(false)
+            return resultData
         } catch (err) {
             console.error('Boundary processing failed:', err)
             setError(err.message || 'Boundary processing failed.')
@@ -233,6 +239,7 @@ export default function Workspace() {
                             onGenerate={handleGenerate}
                             onBoundaryUpload={handleBoundaryUpload}
                             boundary={boundary}
+                            boundaryData={boundaryData}
                             loading={loading}
                         />
                     )}
