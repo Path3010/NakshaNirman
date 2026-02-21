@@ -80,3 +80,37 @@ class BoundaryResponse(BaseModel):
     polygon: list
     area: float
     num_vertices: int
+
+
+class DXFUploadResponse(BaseModel):
+    file_id: str
+    filename: str
+    status: str = "uploaded"
+
+
+class BoundaryExtractionResponse(BaseModel):
+    file_id: str
+    boundary_polygon: list
+    area: float
+    num_vertices: int
+    perimeter: float
+    is_valid: bool
+    is_closed: bool
+    is_self_intersecting: bool
+
+
+class BuildableFootprintResponse(BaseModel):
+    file_id: str
+    boundary_polygon: list
+    usable_polygon: list
+    boundary_area: float
+    usable_area: float
+    setback_applied: float
+    coverage_ratio: float
+    preview_url: Optional[str] = None
+    is_valid: bool
+
+
+class SetbackRequest(BaseModel):
+    setback: Optional[float] = None
+    region: str = "india_mvp"
