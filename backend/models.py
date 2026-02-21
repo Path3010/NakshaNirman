@@ -70,9 +70,14 @@ class BoundaryUpload(Base):
     __tablename__ = "boundary_uploads"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=True)
     file_path = Column(String, nullable=False)
     file_type = Column(String, nullable=False)  # "image" or "dxf"
-    processed_polygon = Column(Text, nullable=True)  # JSON string
+    processed_polygon = Column(Text, nullable=True)  # JSON string of boundary polygon
+    usable_polygon = Column(Text, nullable=True)  # JSON string of buildable footprint
+    setback_applied = Column(Float, nullable=True)  # setback distance in meters
+    boundary_area = Column(Float, nullable=True)  # total plot area
+    usable_area = Column(Float, nullable=True)  # buildable area after setback
+    preview_path = Column(String, nullable=True)  # path to preview image
 
     project = relationship("Project", back_populates="boundary_uploads")

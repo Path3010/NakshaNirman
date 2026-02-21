@@ -1,0 +1,21 @@
+{
+  "india_mvp": {
+    "description": "Simplified Indian building setback rules (MVP)",
+    "setbacks": {
+      "front": 3.0,
+      "rear": 2.0,
+      "left": 1.5,
+      "right": 1.5
+    },
+    "uniform_setback": 2.0,
+    "notes": "Uniform setback used when orientation is unknown. Values in meters.",
+    "max_ground_coverage": 0.60,
+    "max_floors": 3,
+    "min_plot_area": 40.0,
+    "far_limits": {
+      "1_floor": 1.0,
+      "2_floor": 1.5,
+      "3_floor": 2.0
+    }
+  }
+}
