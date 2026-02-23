@@ -9,6 +9,7 @@ groq
 opencv-python-headless
 numpy
 shapely
+networkx
 ezdxf
 trimesh
 triangle
