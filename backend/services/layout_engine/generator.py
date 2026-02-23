@@ -15,7 +15,9 @@ from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
 
 from .adjacency import build_adjacency_graph, is_connected
+from .entrance import place_entrance
 from .geometry_utils import clip_to_boundary, has_overlaps
+from .loaders import load_usable_polygon, load_min_areas
 from .placement import compute_room_specs, place_all_rooms
 from .room_model import Room
 from .scoring import score_layout
@@ -58,6 +60,47 @@ class LayoutGenerator:
         self.room_requirements = room_requirements
         self.min_areas = min_areas or {}
         self.desired_adjacencies = desired_adjacencies or []
+
+    # ------------------------------------------------------------------
+    # Convenience: build from file paths
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def from_json(
+        cls,
+        polygon_path: str,
+        room_requirements: List[dict],
+        rules_path: Optional[str] = None,
+        region: str = "india_mvp",
+        desired_adjacencies: Optional[List[tuple]] = None,
+    ) -> "LayoutGenerator":
+        """
+        Build a LayoutGenerator by loading the usable polygon (and
+        optionally min-area rules) from JSON files.
+
+        Parameters
+        ----------
+        polygon_path : str
+            Path to usable_polygon.json (Step 4).
+        room_requirements : list[dict]
+            Room specs: ``[{"room_type": str, "size": int}, ...]``.
+        rules_path : str, optional
+            Path to region_rules.json (Step 7).
+        region : str
+            Region key inside region_rules.json.
+        desired_adjacencies : list[tuple], optional
+            Pairs ``(type_a, type_b)`` to reward adjacency.
+        """
+        boundary = load_usable_polygon(polygon_path)
+        min_areas = {}
+        if rules_path:
+            min_areas = load_min_areas(rules_path, region)
+        return cls(
+            boundary=boundary,
+            room_requirements=room_requirements,
+            min_areas=min_areas,
+            desired_adjacencies=desired_adjacencies,
+        )
 
     # ------------------------------------------------------------------
     # Internal: single candidate via grid method
@@ -157,9 +200,9 @@ class LayoutGenerator:
             if r.area < min_a:
                 return False
 
-        # 2. Overlap detection
-        polys = [r.polygon for r in rooms]
-        if has_overlaps(polys, tolerance=0.05):
+        # 2. Overlap detection (entrance may overlap adjacent rooms — exclude it)
+        non_entrance = [r.polygon for r in rooms if r.room_type != "entrance"]
+        if has_overlaps(non_entrance, tolerance=0.05):
             return False
 
         # 3. Connectivity check
@@ -217,6 +260,11 @@ class LayoutGenerator:
             if rooms is None:
                 continue
 
+            # Step 9 — Entrance placement
+            entrance = place_entrance(self.boundary, rooms)
+            if entrance is not None:
+                rooms.append(entrance)
+
             if not self._validate(rooms):
                 continue
 
@@ -268,7 +316,15 @@ class LayoutGenerator:
                     else self._generate_treemap_candidate(seed)
                 )
 
-            if rooms is None or not self._validate(rooms):
+            if rooms is None:
+                continue
+
+            # Step 9 — Entrance placement
+            entrance = place_entrance(self.boundary, rooms)
+            if entrance is not None:
+                rooms.append(entrance)
+
+            if not self._validate(rooms):
                 continue
 
             scores = score_layout(rooms, self.boundary, self.desired_adjacencies)
