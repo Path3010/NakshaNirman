@@ -16,6 +16,18 @@
       "1_floor": 1.0,
       "2_floor": 1.5,
       "3_floor": 2.0
+    },
+    "min_room_areas": {
+      "living": 9.5,
+      "bedroom": 7.5,
+      "kitchen": 5.0,
+      "bathroom": 1.8,
+      "toilet": 1.1,
+      "dining": 7.5,
+      "pooja": 2.0,
+      "store": 2.0,
+      "balcony": 2.0,
+      "entrance": 1.5
     }
   }
 }
