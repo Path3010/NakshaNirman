@@ -1,44 +1,44 @@
 /* ============================================================
-   NakshaNirman - Zyforia Design System
-   Exact Zyforia colors: #FF6500 accent, #44D5CC secondary
+   NakshaNirman - Monochrome Design System
+   Clean black & white light theme
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
     --bg-primary: #ffffff;
-    --bg-secondary: #f5f5f5;
-    --bg-tertiary: #EDEDED;
-    --bg-dark: #0C0C0C;
-    --bg-dark-card: #1a1a1a;
+    --bg-secondary: #f7f7f7;
+    --bg-tertiary: #eeeeee;
+    --bg-dark: #f0f0f0;
+    --bg-dark-card: #e8e8e8;
     --bg-card: #ffffff;
     --bg-input: #f5f5f5;
     --bg-input-focus: #ffffff;
 
-    --accent: #FF6500;
-    --accent-hover: #e55a00;
-    --accent-light: #fff4ec;
-    --accent-soft: #ffd4b3;
-    --accent-gradient: linear-gradient(135deg, #FF6500 0%, #ff8534 50%, #FF6500 100%);
+    --accent: #000000;
+    --accent-hover: #333333;
+    --accent-light: #f0f0f0;
+    --accent-soft: #d0d0d0;
+    --accent-gradient: linear-gradient(135deg, #000 0%, #333 50%, #000 100%);
 
-    --secondary: #44D5CC;
-    --secondary-light: #e8faf9;
-    --secondary-hover: #38bfb7;
+    --secondary: #555555;
+    --secondary-light: #f0f0f0;
+    --secondary-hover: #444444;
 
-    --success: #10b981;
-    --success-bg: #ecfdf5;
-    --warning: #f59e0b;
-    --warning-bg: #fffbeb;
-    --error: #ef4444;
-    --error-bg: #fef2f2;
+    --success: #333333;
+    --success-bg: #f0f0f0;
+    --warning: #666666;
+    --warning-bg: #f5f5f5;
+    --error: #333333;
+    --error-bg: #f0f0f0;
 
-    --text-primary: #0C0C0C;
-    --text-secondary: #666666;
+    --text-primary: #000000;
+    --text-secondary: #555555;
     --text-muted: #999999;
     --text-inverse: #ffffff;
 
-    --border: #EDEDED;
-    --border-hover: #d4d4d4;
+    --border: #e0e0e0;
+    --border-hover: #cccccc;
 
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -51,8 +51,8 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
     --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
     --shadow-xl: 0 20px 50px -12px rgba(0, 0, 0, 0.12);
-    --shadow-glow: 0 0 0 3px rgba(255, 101, 0, 0.15);
-    --shadow-glow-teal: 0 0 0 3px rgba(68, 213, 204, 0.15);
+    --shadow-glow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+    --shadow-glow-teal: 0 0 0 3px rgba(0, 0, 0, 0.08);
 
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --transition-fast: 150ms ease;
@@ -128,7 +128,7 @@ a {
 .btn-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(255, 101, 0, 0.35);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
 .btn-secondary {
@@ -160,7 +160,7 @@ a {
 
 .btn-teal:hover {
     background: var(--secondary-hover);
-    box-shadow: 0 4px 14px rgba(68, 213, 204, 0.3);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
 .btn-sm {
@@ -404,7 +404,7 @@ a {
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
     padding: 1.25rem;
-    box-shadow: var(--shadow-xl), 0 0 80px rgba(255, 101, 0, 0.06);
+    box-shadow: var(--shadow-xl);
     max-width: 920px;
     margin: 0 auto;
 }
@@ -431,15 +431,15 @@ a {
 }
 
 .toolbar-dot.red {
-    background: #ef4444;
+    background: #999;
 }
 
 .toolbar-dot.yellow {
-    background: #f59e0b;
+    background: #bbb;
 }
 
 .toolbar-dot.green {
-    background: #10b981;
+    background: #ddd;
 }
 
 .toolbar-title {
@@ -495,30 +495,30 @@ a {
 }
 
 .room-living {
-    background: #fff4ec;
+    background: #f0f0f0;
     grid-column: 1 / 3;
 }
 
 .room-kitchen {
-    background: #e8faf9;
+    background: #e8e8e8;
 }
 
 .room-master {
-    background: #fef2f2;
+    background: #e0e0e0;
     grid-column: 1 / 2;
     grid-row: 2 / 4;
 }
 
 .room-bed {
-    background: #eef2ff;
+    background: #ebebeb;
 }
 
 .room-bath {
-    background: #f0f9ff;
+    background: #f5f5f5;
 }
 
 .room-dining {
-    background: #fffbeb;
+    background: #eaeaea;
     grid-column: 2 / 4;
     grid-row: 3;
 }
@@ -627,20 +627,20 @@ a {
    TESTIMONIALS
    ============================================================ */
 .testimonials-section {
-    background: var(--bg-dark);
+    background: var(--bg-secondary);
     overflow: hidden;
 }
 
 .testimonials-section .section-badge {
-    background: rgba(255, 101, 0, 0.15);
+    background: var(--accent-light);
 }
 
 .testimonials-section .section-title {
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .testimonials-section .section-subtitle {
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--text-secondary);
 }
 
 .testimonials-track {
@@ -661,8 +661,8 @@ a {
 }
 
 .testimonial-card {
-    background: var(--bg-dark-card);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 1.5rem;
     min-width: 340px;
@@ -670,7 +670,7 @@ a {
 }
 
 .testimonial-text {
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--text-secondary);
     font-size: 0.86rem;
     line-height: 1.65;
     margin-bottom: 1.25rem;
@@ -686,7 +686,7 @@ a {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: var(--accent-gradient);
+    background: var(--accent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -698,12 +698,12 @@ a {
 .testimonial-name {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .testimonial-role {
     font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-muted);
 }
 
 /* ============================================================
@@ -782,7 +782,7 @@ a {
    CTA
    ============================================================ */
 .cta-section {
-    background: var(--bg-dark);
+    background: var(--bg-secondary);
 }
 
 .cta-box {
@@ -792,11 +792,11 @@ a {
 }
 
 .cta-box .section-title {
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .cta-box .section-subtitle {
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--text-secondary);
     margin: 0 auto 2rem;
 }
 
@@ -1392,14 +1392,66 @@ a {
 
 .toast-success {
     background: var(--success-bg);
-    color: #065f46;
-    border: 1px solid #a7f3d0;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
 }
 
 .toast-error {
     background: var(--error-bg);
-    color: #991b1b;
-    border: 1px solid #fecaca;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+/* ============================================================
+   CUSTOM CURSOR
+   ============================================================ */
+.cursor-dot {
+    width: 8px;
+    height: 8px;
+    background: #000;
+    border-radius: 50%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 99999;
+    transform: translate(-50%, -50%);
+    transition: width 0.15s, height 0.15s, background 0.15s;
+}
+
+.cursor-ring {
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid rgba(0, 0, 0, 0.4);
+    border-radius: 50%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 99998;
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s, border-color 0.2s;
+}
+
+.cursor-dot.hovering {
+    width: 14px;
+    height: 14px;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.cursor-ring.hovering {
+    width: 50px;
+    height: 50px;
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+@media (hover: none),
+(pointer: coarse) {
+
+    .cursor-dot,
+    .cursor-ring {
+        display: none !important;
+    }
 }
 
 @keyframes slideInRight {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import ChatInterface from '../components/ChatInterface'
+import AIDesignChat from '../components/AIDesignChat'
 import FormInterface from '../components/FormInterface'
 import PlanPreview from '../components/PlanPreview'
 import BoundaryPreview from '../components/BoundaryPreview'
@@ -120,24 +120,53 @@ export default function Workspace() {
 
             setLoadingMessage('Generating your floor plan...')
 
-            // Call generate-floorplan with the correct schema
-            const res = await fetch('/api/generate-floorplan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: pid,
-                    rooms: rooms,
-                    total_area: totalArea,
-                    boundary_polygon: boundary || null,
-                }),
-            })
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}))
-                throw new Error(errData.detail || `Server error ${res.status}`)
+            // Try the new engine endpoint first, fall back to legacy
+            let data
+            try {
+                const engineRes = await fetch('/api/engine/design', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: pid,
+                        total_area: totalArea,
+                        rooms: rooms,
+                        bedrooms: rooms.filter(r => r.room_type === 'bedroom' || r.room_type === 'master_bedroom').reduce((s, r) => s + (r.quantity || 1), 0) || 2,
+                        bathrooms: rooms.filter(r => r.room_type === 'bathroom').reduce((s, r) => s + (r.quantity || 1), 0) || 1,
+                        floors: 1,
+                        extras: rooms.filter(r => !['master_bedroom', 'bedroom', 'bathroom', 'kitchen', 'living'].includes(r.room_type)).map(r => r.room_type),
+                        boundary_polygon: boundary || null,
+                    }),
+                })
+                if (engineRes.ok) {
+                    const engineData = await engineRes.json()
+                    if (engineData.layout) {
+                        data = { plan: engineData.layout, project_id: engineData.project_id || pid }
+                    }
+                }
+            } catch (engineErr) {
+                console.warn('Engine endpoint unavailable, falling back:', engineErr)
             }
 
-            const data = await res.json()
+            // Fallback to legacy endpoint
+            if (!data) {
+                const res = await fetch('/api/generate-floorplan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: pid,
+                        rooms: rooms,
+                        total_area: totalArea,
+                        boundary_polygon: boundary || null,
+                    }),
+                })
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}))
+                    throw new Error(errData.detail || `Server error ${res.status}`)
+                }
+
+                data = await res.json()
+            }
             if (data.plan) {
                 setPlan(data.plan)
                 setProjectId(data.project_id || pid)
@@ -261,8 +290,8 @@ export default function Workspace() {
                     <span className="project-label">Workspace</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}>
-                            <span style={{ width: 10, height: 10, borderRadius: 99, background: backendHealthy ? '#10b981' : '#ef4444', display: 'inline-block' }} />
-                            <span style={{ color: backendHealthy ? '#065f46' : '#7f1d1d', fontWeight: 600 }}>{backendHealthy ? 'Backend OK' : 'Backend Down'}</span>
+                            <span style={{ width: 10, height: 10, borderRadius: 99, background: backendHealthy ? '#000' : '#999', display: 'inline-block' }} />
+                            <span style={{ color: '#000', fontWeight: 600 }}>{backendHealthy ? 'Online' : 'Offline'}</span>
                         </div>
                         {!backendHealthy && (
                             <button className="btn btn-secondary btn-sm" onClick={() => checkBackend()}>
@@ -312,11 +341,12 @@ export default function Workspace() {
                 </div>
                 <div className="sidebar-content">
                     {activeTab === 'chat' ? (
-                        <ChatInterface
+                        <AIDesignChat
                             onGenerate={handleGenerate}
                             onBoundaryUpload={handleBoundaryUpload}
                             loading={loading}
                             projectId={projectId}
+                            plan={plan}
                         />
                     ) : (
                         <FormInterface

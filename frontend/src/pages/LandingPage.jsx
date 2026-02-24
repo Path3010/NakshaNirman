@@ -321,7 +321,7 @@ export default function LandingPage() {
                         </a>
                         <p>
                             Generate professional 2D floor plans and 3D models from simple descriptions.
-                            Built with FastAPI, React, and Groq AI.
+                            Built with FastAPI, React, and AI.
                         </p>
                     </div>
                     <div className="footer-col">
@@ -340,7 +340,7 @@ export default function LandingPage() {
                         <h4>Technology</h4>
                         <a href="#features">React + Vite</a>
                         <a href="#features">FastAPI</a>
-                        <a href="#features">Groq AI</a>
+                        <a href="#features">AI Engine</a>
                         <a href="#features">Three.js</a>
                     </div>
                 </div>
