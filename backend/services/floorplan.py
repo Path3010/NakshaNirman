@@ -14,11 +14,16 @@ Implements complete architectural workflow with engineering logic:
 
 import math
 import random
+import logging
 from typing import Optional, List, Dict, Tuple
 from shapely.geometry import Polygon, box, LineString, MultiPolygon, Point
 from shapely.affinity import scale as shapely_scale, translate, rotate
 from shapely.ops import unary_union
 import json
+
+from services.layout_engine import LayoutGenerator
+
+logger = logging.getLogger(__name__)
 
 
 # INDIAN RESIDENTIAL STANDARDS - Room Sizes (feet)
@@ -977,128 +982,186 @@ def _poly_to_coords(poly) -> list:
     return []
 
 
+def _convert_engine_output(best_layout: list, room_targets: list) -> list:
+    """
+    Convert layout engine room dicts into the ``room_results`` format
+    that the existing post-processing helpers (_generate_walls, _generate_doors,
+    _generate_windows, _generate_furniture, _generate_wall_dimensions) expect.
+
+    Expected input per room (from Room.to_dict()):
+        {room_id, room_type, polygon: [(x,y),...], area, target_area, floor}
+
+    Required output per room:
+        {"room": {"room_type", "label", "target_area"}, "polygon": Polygon}
+    """
+    # Pre-build a per-type label list from room_targets so labels stay consistent
+    label_map: Dict[str, List[str]] = {}
+    for rt in room_targets:
+        label_map.setdefault(rt["room_type"], []).append(rt["label"])
+
+    type_used: Dict[str, int] = {}  # how many of each type consumed so far
+    room_results: list = []
+
+    for room_dict in best_layout:
+        rtype = room_dict["room_type"]
+        coords = room_dict.get("polygon", [])
+
+        # Build Shapely polygon from coordinate list
+        if not coords or len(coords) < 3:
+            continue
+        poly = Polygon(coords)
+        if poly.is_empty or not poly.is_valid:
+            poly = poly.buffer(0)
+            if isinstance(poly, MultiPolygon):
+                poly = max(poly.geoms, key=lambda g: g.area)
+        if poly.is_empty:
+            continue
+
+        # Determine label
+        idx = type_used.get(rtype, 0)
+        type_used[rtype] = idx + 1
+
+        labels = label_map.get(rtype, [])
+        if idx < len(labels):
+            label = labels[idx]
+        else:
+            std = STANDARD_ROOM_SIZES.get(rtype, {})
+            label = std.get("label", rtype.upper())
+            if idx > 0:
+                label = f"{label} {idx + 1}"
+
+        target_area = room_dict.get("target_area", poly.area)
+
+        room_results.append({
+            "room": {
+                "room_type": rtype,
+                "label": label,
+                "target_area": target_area,
+            },
+            "polygon": poly,
+        })
+
+    return room_results
+
+
 def generate_floor_plan(
     boundary_polygon: list,
     rooms: list,
     total_area: Optional[float] = None,
 ) -> dict:
     """
-    Main entry point: Generate professional floor plan using architectural design thinking.
-    
+    Main entry point — generate a single-floor plan via the Phase-3 layout engine.
+
     Workflow:
-    1. Analyze plot geometry
-    2. Determine entry position
-    3. Create zones (public/private/service)
-    4. Place rooms in architectural order
-    5. Add circulation paths
-    6. Plan ventilation and structure
-    7. Generate furniture and dimensions
+      1. Normalise boundary → Shapely Polygon
+      2. Compute room targets (Indian residential standards)
+      3. Convert targets to layout-engine format
+      4. Run LayoutGenerator.generate(n_candidates=200, method="mixed")
+      5. Convert best candidate back to room_results
+      6. Post-process: walls, doors, windows, furniture, dimensions
+
+    Falls back to BSP partition when the engine returns no valid candidates.
 
     Args:
-        boundary_polygon: List of [x,y] coordinates forming the boundary.
+        boundary_polygon: List of [x, y] coordinates forming the boundary.
         rooms: List of dicts with room_type, quantity, desired_area.
         total_area: Total area in sq ft (for scaling).
 
     Returns:
-        Dict with professional floor plan data.
+        Dict with full floor-plan data (rooms, walls, doors, windows, etc.).
     """
-    # Normalize boundary
+    # ----- 1. Normalise boundary -----
     boundary = _normalize_boundary(boundary_polygon, total_area)
     actual_area = boundary.area
-
     if total_area is None:
         total_area = actual_area
 
-    # STEP 1: Analyze plot geometry (Professional Architectural Analysis)
+    # Plot analysis (metadata for response)
     plot_analysis = _analyze_plot_geometry(boundary)
-    
-    # STEP 2: Determine entry position + parking layout (Indian Standards)
     entry_info = _determine_entry_position(boundary, plot_analysis)
     entry_point = entry_info["entry_point"]
-    
-    # Compute room targets with standard Indian residential sizes
+
+    # ----- 2. Room targets (Indian standard sizes, scaled) -----
     room_targets = _compute_room_targets(rooms, total_area)
-    
-    # STEP 3: Create zones (Public/Semi-private/Private/Service)
-    zones = _create_zones(room_targets)
-    
-    # STEP 4: Place rooms in intelligent architectural order
-    placement_order = _get_placement_order()
-    placed_rooms = []
-    available_space = boundary
-    
-    # Sort rooms by architectural placement logic
-    ordered_rooms = []
-    for order_type in placement_order:
-        matching = [r for r in room_targets if r["room_type"] == order_type]
-        ordered_rooms.extend(matching)
-    
-    # Add any remaining rooms not in order list
-    for room in room_targets:
-        if room not in ordered_rooms:
-            ordered_rooms.append(room)
-    
-    # Try intelligent placement using architect + engineer principles
-    room_results = []
-    for room in ordered_rooms:
-        room_poly = _place_room_intelligently(
-            room["room_type"],
-            room,
-            available_space,
-            placed_rooms,
-            entry_point,
-            plot_analysis
-        )
-        
-        if room_poly and not room_poly.is_empty:
-            placed_rooms.append({
-                "room_type": room["room_type"],
-                "label": room["label"],
-                "polygon": room_poly,
-                "centroid": (room_poly.centroid.x, room_poly.centroid.y),
-                "target_area": room["target_area"],
-            })
-            room_results.append({
-                "room": room,
-                "polygon": room_poly,
-            })
-            
-            # Update available space (subtract placed room with buffer)
-            try:
-                available_space = available_space.difference(room_poly.buffer(0.5))
-                if available_space.is_empty:
-                    break
-                if isinstance(available_space, MultiPolygon):
-                    available_space = max(available_space.geoms, key=lambda g: g.area)
-            except:
-                pass
-    
-    # Fallback: If intelligent placement didn't work well, use BSP
-    if len(room_results) < len(room_targets) * 0.7:  # Less than 70% placed
+
+    # ----- 3. Convert to layout-engine requirements -----
+    # LayoutGenerator expects [{"room_type": str, "size": int}]
+    # where `size` is a relative weight; area ∝ size².  Using
+    # sqrt(target_area) keeps the proportional distribution correct.
+    room_requirements: List[dict] = []
+    for rt in room_targets:
+        size = max(1, int(math.sqrt(rt["target_area"])))
+        room_requirements.append({
+            "room_type": rt["room_type"],
+            "size": size,
+        })
+
+    # Min-area thresholds (40 % of Indian standard, same unit as boundary)
+    min_areas: Dict[str, float] = {}
+    for rtype, info in STANDARD_ROOM_SIZES.items():
+        min_areas[rtype] = info["min_area"] * 0.4
+
+    # Desired adjacency pairs for the scorer
+    desired_adjacencies = [
+        ("living", "dining"),
+        ("kitchen", "dining"),
+        ("master_bedroom", "bathroom"),
+        ("bedroom", "bathroom"),
+        ("living", "porch"),
+    ]
+
+    # ----- 4. Generate candidates via layout engine -----
+    gen = LayoutGenerator(
+        boundary=boundary,
+        room_requirements=room_requirements,
+        min_areas=min_areas,
+        desired_adjacencies=desired_adjacencies,
+    )
+    engine_result = gen.generate(n_candidates=200, method="mixed")
+    best_layout = engine_result.get("best_layout", [])
+
+    logger.info(
+        "Layout engine: %d generated, %d valid, best score %.3f",
+        engine_result.get("candidates_generated", 0),
+        engine_result.get("candidates_valid", 0),
+        engine_result.get("score", {}).get("total", 0),
+    )
+
+    # ----- 5. Convert to room_results (or BSP fallback) -----
+    if best_layout:
+        room_results = _convert_engine_output(best_layout, room_targets)
+    else:
+        logger.warning("Layout engine produced 0 valid candidates — falling back to BSP.")
         minx, miny, maxx, maxy = boundary.bounds
         bounding_rect = box(minx, miny, maxx, maxy)
         room_results = _bsp_partition(bounding_rect, room_targets, boundary)
-    
-    # Generate architectural elements
+
+    # ----- 6. Post-process: architectural elements -----
     walls = _generate_walls(room_results, boundary)
     doors = _generate_doors(room_results)
     windows = _generate_windows(room_results, boundary)
     furniture = _generate_furniture(room_results, boundary)
     dimensions = _generate_wall_dimensions(room_results, boundary)
 
-    # Build result
+    # ----- 7. Assemble response -----
     plan_rooms = []
-    for result in room_results:
-        coords = _poly_to_coords(result["polygon"])
-        poly = result["polygon"]
+    for item in room_results:
+        poly = item["polygon"]
+        coords = _poly_to_coords(poly)
         plan_rooms.append({
-            "label": result["room"]["label"],
-            "room_type": result["room"]["room_type"],
-            "target_area": result["room"]["target_area"],
+            "label": item["room"]["label"],
+            "room_type": item["room"]["room_type"],
+            "target_area": item["room"]["target_area"],
             "actual_area": round(poly.area, 2) if not poly.is_empty else 0,
             "polygon": coords,
-            "centroid": [round(poly.centroid.x, 2), round(poly.centroid.y, 2)] if not poly.is_empty else [0, 0],
+            "centroid": (
+                [round(poly.centroid.x, 2), round(poly.centroid.y, 2)]
+                if not poly.is_empty
+                else [0, 0]
+            ),
         })
+
+    engine_score = engine_result.get("score", {})
 
     return {
         "boundary": _poly_to_coords(boundary),
@@ -1109,8 +1172,14 @@ def generate_floor_plan(
         "windows": windows,
         "furniture": furniture,
         "dimensions": dimensions,
+        "engine_stats": {
+            "candidates_generated": engine_result.get("candidates_generated", 0),
+            "candidates_valid": engine_result.get("candidates_valid", 0),
+            "score": engine_score,
+            "corridor": engine_result.get("corridor", {}),
+        },
         "design_thinking": {
-            "approach": "Professional Residential Architect + Structural Engineer",
+            "approach": "Layout Engine — Grid + Treemap (200 candidates, best score)",
             "entry_point": list(entry_point),
             "parking_provided": entry_info.get("parking_layout") is not None,
             "plot_analysis": {
@@ -1122,8 +1191,6 @@ def generate_floor_plan(
                 "can_fit_structural_columns": plot_analysis["can_fit_columns"],
                 "cross_ventilation_possible": len(plot_analysis["ventilation_pairs"]) > 0,
             },
-            "zones_used": list(zones.keys()),
-            "placement_order": placement_order,
-            "rooms_placed": f"{len(room_results)}/{len(room_targets)}",
+            "rooms_placed": f"{len(plan_rooms)}/{len(room_targets)}",
         },
     }
